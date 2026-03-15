@@ -19,6 +19,7 @@ import (
 type step struct {
 	printOutput  bool
 	ignoreOutput bool
+	interactive  bool
 	stepName     string
 	command      string
 	args         string
@@ -31,6 +32,7 @@ type step struct {
 func newStep(stepName string, ffs flowfile.Step, vars map[string]string, printOutput bool, stdin *string) (*step, error) {
 	st := step{
 		printOutput:  printOutput,
+		interactive:  ffs.Interactive,
 		ignoreOutput: ffs.IgnoreOutput,
 		stepName:     stepName,
 		variables:    vars,
@@ -146,7 +148,9 @@ func (s *step) run(silent bool) (stepResult, error) {
 	cmd.Stdout = io.MultiWriter(writers...)
 	cmd.Stderr = os.Stderr
 
-	if s.stdin != nil {
+	if s.interactive {
+		cmd.Stdin = os.Stdin
+	} else if s.stdin != nil {
 		cmd.Stdin = bytes.NewBufferString(*s.stdin)
 	}
 

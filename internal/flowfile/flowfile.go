@@ -18,6 +18,7 @@ type Flowfile struct {
 type Step struct {
 	RequiredVariables []string          `yaml:"required_vars"`
 	RequireStdin      bool              `yaml:"require_stdin"`
+	Interactive       bool              `yaml:"interactive"`
 	Files             map[string]string `yaml:"files"`
 	CMD               string            `yaml:"cmd"`
 	Parser            string            `yaml:"parser"`
@@ -55,6 +56,10 @@ func (ff *Flowfile) ValidateScript(name string) error {
 
 		if strings.TrimSpace(ffStep.CMD) == "" {
 			return fmt.Errorf("step %q: command not specified", chain.Step)
+		}
+
+		if ffStep.Interactive && chain.Stdin != nil {
+			return fmt.Errorf("step %q: interactive step cannot have stdin", chain.Step)
 		}
 
 		if ffStep.RequireStdin && chain.Stdin == nil {
