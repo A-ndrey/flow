@@ -2,7 +2,6 @@ package executor
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -22,7 +21,6 @@ type step struct {
 	interactive  bool
 	stepName     string
 	command      string
-	args         string
 	stdin        *string
 	parser       Parser
 	variables    map[string]string
@@ -35,20 +33,10 @@ func newStep(stepName string, ffs flowfile.Step, vars map[string]string, printOu
 		interactive:  ffs.Interactive,
 		ignoreOutput: ffs.IgnoreOutput,
 		stepName:     stepName,
+		command:      strings.TrimSpace(ffs.CMD),
 		variables:    vars,
 		stdin:        stdin,
 		files:        ffs.Files,
-	}
-
-	splitted := strings.SplitN(strings.TrimSpace(ffs.CMD), " ", 2)
-	if len(splitted) < 1 {
-		return nil, errors.New("no command")
-	}
-
-	st.command = splitted[0]
-
-	if len(splitted) == 2 {
-		st.args = splitted[1]
 	}
 
 	switch strings.ToLower(strings.TrimSpace(ffs.Parser)) {
@@ -116,24 +104,28 @@ func (s *step) execTemplates(data map[string]any) error {
 		s.stdin = &stdin
 	}
 
-	if s.args != "" {
-		args, err := tmplApply(s.args, data)
-		if err != nil {
-			return fmt.Errorf("failed to apply template for args: %w", err)
-		}
-
-		s.args = args
+	cmd, err := tmplApply(s.command, data)
+	if err != nil {
+		return fmt.Errorf("failed to apply template for command: %w", err)
 	}
+	s.command = cmd
 
 	return nil
 }
 
 func (s *step) run(silent bool) (stepResult, error) {
 	if !silent {
-		fmt.Fprintf(os.Stderr, "\033[1;33mstep %q: %s %s\033[0m\n", s.stepName, s.command, s.args)
+		fmt.Fprintf(os.Stderr, "\033[1;33mstep %q: %s\033[0m\n", s.stepName, s.command)
 	}
 
-	cmd := exec.Command(s.command, s.args)
+	splittedCMD := strings.Split(s.command, " ")
+
+	var cmd *exec.Cmd
+	if len(splittedCMD) > 1 {
+		cmd = exec.Command(splittedCMD[0], splittedCMD[1:]...)
+	} else {
+		cmd = exec.Command(splittedCMD[0])
+	}
 
 	var sb strings.Builder
 
