@@ -150,14 +150,15 @@ func (s *step) run(silent bool) (stepResult, error) {
 		return stepResult{}, err
 	}
 
-	result := newStepResult()
-	result.setRaw(sb.String())
+	raw := sb.String()
 
-	parsed, err := s.parser.Parse([]byte(result.raw()))
+	parsed, err := s.parser.Parse([]byte(strings.Trim(raw, `"`)))
 	if err != nil {
 		return stepResult{}, err
 	}
 
+	result := newStepResult()
+	result.setRaw(raw)
 	result.setParsed(parsed)
 
 	return result, nil
